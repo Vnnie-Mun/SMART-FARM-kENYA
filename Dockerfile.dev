@@ -1,0 +1,56 @@
+# Development Dockerfile for Arduino Sensor Data Processor
+FROM python:3.11-slim
+
+# Set metadata
+LABEL maintainer="Arduino Sensor Team"
+LABEL description="Arduino Sensor Data Processor - Development"
+LABEL version="2.0.0-dev"
+
+# Set environment variables for development
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=development
+ENV FLASK_DEBUG=1
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libc6-dev \
+    supervisor \
+    curl \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better Docker layer caching)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Install development dependencies
+RUN pip install --no-cache-dir watchdog flask-cors
+
+# Create necessary directories
+RUN mkdir -p /app/logs /var/log/supervisor
+
+# Copy supervisor configuration for development
+COPY docker/supervisord-dev.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Copy startup script
+COPY docker/start-dev.sh /app/start-dev.sh
+RUN chmod +x /app/start-dev.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+# Expose Flask port
+EXPOSE 5000
+
+# Default command
+CMD ["/app/start-dev.sh"]

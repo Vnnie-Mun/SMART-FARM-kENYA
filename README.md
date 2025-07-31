@@ -93,6 +93,31 @@ DEBUG=False
 
 ### 4. Run the System
 
+#### 🐳 Docker (Recommended)
+
+**Quick Start with Docker Compose:**
+```bash
+# Production
+docker-compose up -d
+
+# Development with hot reload
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+**Using Build Scripts:**
+```bash
+# Build Docker images
+./scripts/build.sh --type production
+
+# Run container with auto-detection
+./scripts/run.sh start
+
+# Windows users
+scripts\run.bat start
+```
+
+#### 🐍 Python (Local Development)
+
 **Option A: Complete System (Flask + Serial Listener)**
 
 Terminal 1 - Start Flask Server:
@@ -310,6 +335,192 @@ The system sends intelligent SMS alerts using Africa's Talking API with:
 
 See `sample_sms_messages.json` for complete examples of all alert types and scenarios.
 
+## 🐳 Docker Deployment
+
+### Quick Start with Docker
+
+**1. Build and Run (Production):**
+```bash
+# Build the image
+./scripts/build.sh --type production
+
+# Run with auto-detected serial port
+./scripts/run.sh start
+
+# Access at http://localhost:5000
+```
+
+**2. Development with Hot Reload:**
+```bash
+# Build development image
+./scripts/build.sh --type dev
+
+# Run development container
+./scripts/run.sh start --dev
+
+# Or use docker-compose for development
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+### Docker Compose (Recommended)
+
+**Production Deployment:**
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+**Development Environment:**
+```bash
+# Start with hot reload and development tools
+docker-compose -f docker-compose.dev.yml up -d
+
+# Includes PostgreSQL and Redis for testing
+# Access development database at localhost:5433
+```
+
+### Cross-Platform Serial Port Support
+
+**Linux:**
+```bash
+# Auto-detect Arduino port
+./scripts/run.sh start
+
+# Specify exact port
+SERIAL_PORT=/dev/ttyUSB0 docker-compose up -d
+```
+
+**Windows (Docker Desktop):**
+```bash
+# Use batch script
+scripts\run.bat start
+
+# Or specify COM port
+set SERIAL_PORT=COM3
+docker-compose up -d
+```
+
+**macOS:**
+```bash
+# Auto-detect Arduino port
+./scripts/run.sh start
+
+# Specify exact port
+SERIAL_PORT=/dev/cu.usbmodem14101 docker-compose up -d
+```
+
+### Container Management
+
+**Using Run Scripts:**
+```bash
+# Linux/Mac
+./scripts/run.sh start          # Start container
+./scripts/run.sh stop           # Stop container
+./scripts/run.sh restart        # Restart container
+./scripts/run.sh logs --follow  # View logs
+./scripts/run.sh shell          # Open container shell
+./scripts/run.sh status         # Show status
+./scripts/run.sh cleanup        # Clean up resources
+
+# Windows
+scripts\run.bat start           # Start container
+scripts\run.bat stop            # Stop container
+scripts\run.bat logs            # View logs
+scripts\run.bat shell           # Open container shell
+```
+
+**Direct Docker Commands:**
+```bash
+# Build images
+docker build -t arduino-sensor-processor .
+docker build -f Dockerfile.dev -t arduino-sensor-processor:dev .
+
+# Run with serial port
+docker run -d \
+  --name arduino-sensor-processor \
+  --device /dev/ttyUSB0:/dev/ttyUSB0 \
+  --privileged \
+  -p 5000:5000 \
+  --env-file .env \
+  -v $(pwd)/logs:/app/logs \
+  arduino-sensor-processor
+
+# View logs
+docker logs -f arduino-sensor-processor
+
+# Open shell
+docker exec -it arduino-sensor-processor /bin/bash
+```
+
+### Multi-Platform Builds
+
+```bash
+# Build for multiple architectures
+./scripts/build.sh --platform both --type production
+
+# Build for ARM64 (Raspberry Pi)
+./scripts/build.sh --platform linux/arm64
+
+# Push to registry
+./scripts/build.sh --push --registry your-registry.com
+```
+
+### Environment Configuration
+
+**Docker Environment Variables:**
+```bash
+# In .env file or docker-compose.yml
+GEMINI_API_KEY=your_api_key
+AT_API_KEY=your_africas_talking_key
+AT_RECIPIENT_PHONE=+254712345678
+SERIAL_PORT=/dev/ttyUSB0
+FLASK_PORT=5000
+DEBUG=False
+```
+
+### Troubleshooting Docker
+
+**Serial Port Issues:**
+```bash
+# Check available ports
+ls -la /dev/tty*
+
+# Test serial access
+./scripts/run.sh start --serial /dev/ttyUSB0
+
+# Windows: Enable COM port sharing in Docker Desktop
+```
+
+**Container Health:**
+```bash
+# Check container health
+docker inspect arduino-sensor-processor | grep Health -A 10
+
+# View detailed logs
+docker logs arduino-sensor-processor
+
+# Check resource usage
+docker stats arduino-sensor-processor
+```
+
+**Build Issues:**
+```bash
+# Clean build (no cache)
+./scripts/build.sh --no-cache
+
+# Clean up Docker resources
+./scripts/run.sh cleanup
+
+# Remove all containers and images
+docker system prune -a
+```
+
 ## 🔌 Arduino Serial Communication
 
 ### Hardware Setup
@@ -366,6 +577,29 @@ temp=25.3,humidity=60.2,light=512,gas=150
    ```
 4. **Upload the Arduino sketch** and start sending data
 
+### Docker Serial Port Configuration
+
+**Linux/Mac:**
+```bash
+# Auto-detect serial port
+./scripts/run.sh start
+
+# Specify serial port
+./scripts/run.sh start --serial /dev/ttyUSB0
+
+# Using docker-compose
+SERIAL_PORT=/dev/ttyUSB0 docker-compose up -d
+```
+
+**Windows:**
+```bash
+# Using Docker Desktop (requires port sharing)
+scripts\run.bat start
+
+# Or with docker-compose
+set SERIAL_PORT=COM3 && docker-compose up -d
+```
+
 ## 📁 Project Structure
 
 ```
@@ -383,8 +617,23 @@ arduino-sensor-processor/
 ├── sample_sms_messages.json   # Example SMS messages farmers receive
 ├── test_requests.py           # Automated test suite
 ├── README.md                  # This file
-├── sensor_data.log           # Application logs (created at runtime)
-├── serial_listener.log       # Serial communication logs (created at runtime)
+├── Dockerfile                 # Production Docker image
+├── Dockerfile.dev             # Development Docker image
+├── docker-compose.yml         # Production Docker Compose
+├── docker-compose.dev.yml     # Development Docker Compose
+├── .dockerignore              # Docker build exclusions
+├── docker/
+│   ├── supervisord.conf       # Production supervisor config
+│   ├── supervisord-dev.conf   # Development supervisor config
+│   ├── start.sh               # Production startup script
+│   └── start-dev.sh           # Development startup script
+├── scripts/
+│   ├── build.sh               # Docker build script (Linux/Mac)
+│   ├── run.sh                 # Docker run script (Linux/Mac)
+│   └── run.bat                # Docker run script (Windows)
+├── logs/                      # Application logs (created at runtime)
+├── sensor_data.log           # Main application logs
+├── serial_listener.log       # Serial communication logs
 └── sms_state.json            # SMS state tracking (created at runtime)
 ```
 
@@ -495,11 +744,18 @@ This project is open source and available under the [MIT License](LICENSE).
 - Ensure baud rate matches between Arduino and Python (9600)
 - Try different USB cable or port
 
+**Docker serial port issues**
+- On Linux: Ensure user is in `dialout` group: `sudo usermod -a -G dialout $USER`
+- On Windows: Enable COM port sharing in Docker Desktop settings
+- Check port exists in container: `docker exec -it container-name ls -la /dev/tty*`
+- Use `--privileged` flag for serial access
+
 **"No data received from Arduino"**
 - Check Arduino is powered and running the correct sketch
 - Verify sensor wiring connections
 - Check serial monitor to see if Arduino is sending data
 - Ensure sensors are functioning properly
+- In Docker: Verify port is mounted correctly with `--device` flag
 
 **Connection refused errors**
 - Ensure the Flask server is running
@@ -516,3 +772,5 @@ This project is open source and available under the [MIT License](LICENSE).
 - Test SMS functionality with `/sms/test` endpoint
 - Check serial communication logs in `serial_listener.log`
 - Test with the Arduino simulator for debugging
+- For Docker issues: Check container logs with `docker logs container-name`
+- Verify Docker container health: `docker inspect container-name | grep Health`

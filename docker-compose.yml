@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  arduino-sensor-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arduino-sensor-processor
+    restart: unless-stopped
+    
+    # Environment variables
+    env_file:
+      - .env
+    
+    # Port mapping
+    ports:
+      - "${FLASK_PORT:-5000}:5000"
+    
+    # Serial port access (Linux/Mac)
+    devices:
+      - "${SERIAL_PORT:-/dev/ttyUSB0}:${SERIAL_PORT:-/dev/ttyUSB0}"
+    
+    # Volume mounts
+    volumes:
+      - ./logs:/app/logs
+      - ./sms_state.json:/app/sms_state.json
+      - /etc/localtime:/etc/localtime:ro
+    
+    # Privileged mode for serial access
+    privileged: true
+    
+    # Network mode
+    network_mode: bridge
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+# Optional: Add a database service for SMS logging
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: arduino-sensor-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: sensor_data
+  #     POSTGRES_USER: ${DB_USER:-sensor}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-sensor123}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# Optional: Add Redis for caching
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: arduino-sensor-redis
+  #   restart: unless-stopped
+  #   volumes:
+  #     - redis_data:/data
+  #   ports:
+  #     - "6379:6379"
+
+volumes:
+  logs:
+    driver: local
+  # postgres_data:
+  #   driver: local
+  # redis_data:
+  #   driver: local
+
+networks:
+  default:
+    name: arduino-sensor-network
