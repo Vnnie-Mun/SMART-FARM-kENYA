@@ -49,6 +49,17 @@ class Config:
     GAS_ALERT_COOLDOWN: int = int(os.getenv('GAS_ALERT_COOLDOWN', '300'))  # 5 minutes
     SMS_ENABLED: bool = os.getenv('SMS_ENABLED', 'True').lower() == 'true'
     
+    # Serial Communication Configuration
+    SERIAL_PORT: str = os.getenv('SERIAL_PORT', 'COM3')  # Windows: COM3, Linux: /dev/ttyUSB0
+    SERIAL_BAUDRATE: int = int(os.getenv('SERIAL_BAUDRATE', '9600'))
+    SERIAL_TIMEOUT: float = float(os.getenv('SERIAL_TIMEOUT', '1.0'))
+    SERIAL_INIT_DELAY: float = float(os.getenv('SERIAL_INIT_DELAY', '2.0'))
+    SERIAL_READ_INTERVAL: float = float(os.getenv('SERIAL_READ_INTERVAL', '0.1'))
+    SERIAL_RECONNECT_DELAY: int = int(os.getenv('SERIAL_RECONNECT_DELAY', '5'))
+    SERIAL_DATA_TIMEOUT: int = int(os.getenv('SERIAL_DATA_TIMEOUT', '30'))
+    FORWARD_TO_FLASK: bool = os.getenv('FORWARD_TO_FLASK', 'True').lower() == 'true'
+    FLASK_REQUEST_TIMEOUT: int = int(os.getenv('FLASK_REQUEST_TIMEOUT', '10'))
+    
     @classmethod
     def validate_config(cls) -> Dict[str, Any]:
         """Validate configuration and return status"""
@@ -107,6 +118,13 @@ class Config:
                     "sandbox": cls.AT_SANDBOX,
                     "recipient_configured": bool(cls.AT_RECIPIENT_PHONE),
                     "gas_alert_cooldown": cls.GAS_ALERT_COOLDOWN
+                },
+                "serial_config": {
+                    "port": cls.SERIAL_PORT,
+                    "baudrate": cls.SERIAL_BAUDRATE,
+                    "timeout": cls.SERIAL_TIMEOUT,
+                    "forward_to_flask": cls.FORWARD_TO_FLASK,
+                    "reconnect_delay": cls.SERIAL_RECONNECT_DELAY
                 }
             }
         }

@@ -1,20 +1,22 @@
 # Arduino Sensor Data Processor with Gemini AI + SMS Alerts
 
-A Flask-based server application that receives sensor data from wireless Arduino devices, uses Google Gemini AI to make intelligent control decisions, and sends real-time SMS alerts to farmers via Africa's Talking API.
+A Flask-based server application that receives sensor data from Arduino Mega via USB serial communication, uses Google Gemini AI to make intelligent control decisions, and sends real-time SMS alerts to farmers via Africa's Talking API.
 
 ## 🚀 Features
 
-- **REST API** for receiving Arduino sensor data via HTTP POST
+- **Serial Communication** reads Arduino sensor data via USB connection
+- **Multiple Data Formats** supports JSON, CSV, and key-value formats from Arduino
 - **Google Gemini AI Integration** for intelligent decision making
 - **SMS Alerts via Africa's Talking** for real-time farmer notifications
 - **Environmental Control Logic** for temperature, humidity, light, and gas monitoring
 - **Intelligent Alert Management** prevents SMS spam with state tracking
 - **Farmer-Friendly Messages** with emojis and clear action guidance
+- **Automatic Reconnection** handles serial disconnections gracefully
 - **Comprehensive Logging** of sensor data, AI decisions, and SMS alerts
 - **Configurable Thresholds** for all sensor parameters and alert cooldowns
 - **Robust Error Handling** with fallback rule-based decisions
 - **Health Check Endpoints** for monitoring system status
-- **Sandbox/Live Environment** support for development and production
+- **Test Simulator** for development without physical Arduino
 
 ## 📊 Sensor Data Processing
 
@@ -89,13 +91,26 @@ DEBUG=False
    AT_RECIPIENT_PHONE=+254712345678
    ```
 
-### 4. Run the Server
+### 4. Run the System
 
+**Option A: Complete System (Flask + Serial Listener)**
+
+Terminal 1 - Start Flask Server:
 ```bash
 python app.py
 ```
 
-The server will start on `http://localhost:5000` by default.
+Terminal 2 - Start Serial Listener:
+```bash
+python serial_listener.py --port COM3
+```
+
+**Option B: Flask Server Only (for HTTP requests)**
+```bash
+python app.py
+```
+
+The Flask server will start on `http://localhost:5000` by default.
 
 ## 📡 API Documentation
 
@@ -195,7 +210,29 @@ API information and documentation.
 
 ## 🧪 Testing
 
-### Automated Testing
+### Serial Communication Testing
+
+**Test with Simulator (No Arduino Required):**
+```bash
+# Run test simulator
+python serial_test_simulator.py --test
+
+# Run with specific format
+python serial_test_simulator.py --format json --interval 2
+
+# Continuous mode
+python serial_test_simulator.py --mode continuous --base-scenario hot
+```
+
+**Test with Real Arduino:**
+1. Upload `arduino_example.ino` to your Arduino Mega
+2. Connect via USB and note the COM port
+3. Run serial listener:
+   ```bash
+   python serial_listener.py --port COM3
+   ```
+
+### Flask API Testing
 
 Run the comprehensive test suite:
 
@@ -273,47 +310,61 @@ The system sends intelligent SMS alerts using Africa's Talking API with:
 
 See `sample_sms_messages.json` for complete examples of all alert types and scenarios.
 
-## 🔧 Arduino Integration
+## 🔌 Arduino Serial Communication
 
-### Expected Arduino Setup
+### Hardware Setup
 
-Your Arduino should send HTTP POST requests with JSON payloads. Example Arduino code structure:
+**Required Components:**
+- Arduino Mega 2560
+- DHT22 temperature/humidity sensor
+- Photoresistor (light sensor)
+- MQ-2 gas sensor
+- USB cable for serial connection
 
-```cpp
-// WiFi and HTTP libraries
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
+**Wiring Connections:**
+```
+DHT22 Sensor:
+- VCC → 5V
+- GND → GND  
+- DATA → Digital Pin 2
+- 10kΩ resistor between VCC and DATA
 
-// Sensor readings
-float temperature = dht.readTemperature();
-float humidity = dht.readHumidity();
-int lightIntensity = analogRead(LIGHT_SENSOR_PIN);
-int gasLevel = analogRead(GAS_SENSOR_PIN);
+Photoresistor (Light Sensor):
+- One end → 5V
+- Other end → A0 and 10kΩ resistor to GND
 
-// Create JSON payload
-StaticJsonDocument<200> doc;
-doc["temperature"] = temperature;
-doc["humidity"] = humidity;
-doc["light_intensity"] = lightIntensity;
-doc["gas_level"] = gasLevel;
-
-String jsonString;
-serializeJson(doc, jsonString);
-
-// Send POST request
-HTTPClient http;
-http.begin("http://your-server:5000/submit-data");
-http.addHeader("Content-Type", "application/json");
-int httpResponseCode = http.POST(jsonString);
+MQ-2 Gas Sensor:
+- VCC → 5V
+- GND → GND
+- A0 → Analog Pin A1
 ```
 
-### Wireless Options
+### Arduino Code
 
-- **ESP8266/ESP32**: Built-in WiFi capability
-- **Arduino + WiFi Shield**: Using WiFi expansion boards
-- **Arduino + ESP8266**: Using ESP8266 as WiFi module
-- **LoRa/LoRaWAN**: For long-range wireless communication
+The Arduino sends sensor data via serial port in multiple supported formats. See `arduino_example.ino` for complete code.
+
+**Example Serial Output:**
+```cpp
+// JSON Format (default)
+{"temperature": 25.3, "humidity": 60.2, "light_intensity": 512, "gas_level": 150}
+
+// CSV Format  
+25.3,60.2,512,150
+
+// Key-Value Format
+temp=25.3,humidity=60.2,light=512,gas=150
+```
+
+### Serial Communication Setup
+
+1. **Connect Arduino via USB** to your computer
+2. **Note the COM port** (Windows: COM3, Linux: /dev/ttyUSB0, Mac: /dev/tty.usbmodem*)
+3. **Configure the port** in your `.env` file:
+   ```bash
+   SERIAL_PORT=COM3          # Your Arduino's COM port
+   SERIAL_BAUDRATE=9600      # Match Arduino's Serial.begin() rate
+   ```
+4. **Upload the Arduino sketch** and start sending data
 
 ## 📁 Project Structure
 
@@ -323,13 +374,17 @@ arduino-sensor-processor/
 ├── config.py                   # Configuration management
 ├── gemini_utils.py             # Gemini AI integration
 ├── sms_utils.py               # Africa's Talking SMS integration
+├── serial_listener.py         # Arduino serial communication handler
+├── serial_test_simulator.py   # Test simulator for development
 ├── requirements.txt            # Python dependencies
 ├── .env.example               # Environment variables template
-├── sample_arduino_payload.json # Sample test data
+├── arduino_example.ino        # Arduino sketch for sensor reading
+├── sample_arduino_payload.json # Sample test data (legacy)
 ├── sample_sms_messages.json   # Example SMS messages farmers receive
 ├── test_requests.py           # Automated test suite
 ├── README.md                  # This file
 ├── sensor_data.log           # Application logs (created at runtime)
+├── serial_listener.log       # Serial communication logs (created at runtime)
 └── sms_state.json            # SMS state tracking (created at runtime)
 ```
 
@@ -368,6 +423,11 @@ All settings can be customized via environment variables:
 | `AT_SANDBOX` | `True` | Use sandbox (True) or live (False) environment |
 | `GAS_ALERT_COOLDOWN` | `300` | Minimum seconds between gas alerts |
 | `SMS_ENABLED` | `True` | Enable/disable SMS functionality |
+| `SERIAL_PORT` | `COM3` | Arduino serial port (COM3, /dev/ttyUSB0) |
+| `SERIAL_BAUDRATE` | `9600` | Serial communication speed |
+| `SERIAL_TIMEOUT` | `1.0` | Serial read timeout in seconds |
+| `FORWARD_TO_FLASK` | `True` | Forward serial data to Flask server |
+| `FLASK_REQUEST_TIMEOUT` | `10` | Timeout for Flask API requests |
 
 ## 🚨 Error Handling
 
@@ -378,6 +438,8 @@ The system includes comprehensive error handling:
 - **Out-of-range values**: Validates sensor data ranges
 - **AI processing failure**: Falls back to rule-based decisions
 - **SMS delivery failure**: Logs errors and continues operation
+- **Serial disconnections**: Automatic reconnection with configurable delays
+- **Invalid serial data**: Validates format and range checks
 - **Network issues**: Proper timeout and retry handling
 - **Invalid phone numbers**: Validates format and provides clear errors
 
@@ -427,6 +489,18 @@ This project is open source and available under the [MIT License](LICENSE).
 - Verify all Africa's Talking credentials are set
 - Check SMS service status at `/sms/status` endpoint
 
+**Serial communication issues**
+- Verify Arduino is connected and COM port is correct
+- Check that no other application is using the serial port
+- Ensure baud rate matches between Arduino and Python (9600)
+- Try different USB cable or port
+
+**"No data received from Arduino"**
+- Check Arduino is powered and running the correct sketch
+- Verify sensor wiring connections
+- Check serial monitor to see if Arduino is sending data
+- Ensure sensors are functioning properly
+
 **Connection refused errors**
 - Ensure the Flask server is running
 - Check that the port (default 5000) is not blocked
@@ -440,3 +514,5 @@ This project is open source and available under the [MIT License](LICENSE).
 - Check Google Gemini API status and quotas
 - Verify Africa's Talking account balance and SMS credits
 - Test SMS functionality with `/sms/test` endpoint
+- Check serial communication logs in `serial_listener.log`
+- Test with the Arduino simulator for debugging
